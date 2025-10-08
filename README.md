@@ -1,6 +1,21 @@
 # go-torbox
 
-A comprehensive Go SDK for the [TorBox API](https://torbox.app), providing easy access to torrent, usenet, web downloads, and various cloud integrations.
+A comprehensive Go SDK client library for the TorBox API, providing both general torrent management and search capabilities.
+
+[![Go Reference](https://pkg.go.dev/badge/github.com/dylanmazurek/go-torbox.svg)](https://pkg.go.dev/github.com/dylanmazurek/go-torbox)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/dylanmazurek/go-torbox)](https://golang.org/dl/)
+
+## Features
+
+- 🚀 **Complete API Coverage**: Full implementation of TorBox General and Search APIs
+- 🔄 **Automatic Retries**: Built-in retry logic with exponential backoff for network errors
+- ⚡ **Rate Limiting**: Intelligent handling of API rate limits with `Retry-After` header support
+- 📦 **Torrent Management**: Create, control, and download torrents with ease
+- 🔍 **Search Capabilities**: Search torrents and fetch metadata
+- 🧲 **Magnet Link Parsing**: Standalone magnet link parser
+- 📄 **Torrent File Parsing**: Bencode torrent file parser with crypto support
+- 📝 **Structured Logging**: Integration with zerolog for comprehensive logging
+- 🔐 **Secure Authentication**: Custom transport layer with API key authentication
 
 ## Installation
 
@@ -17,14 +32,22 @@ import (
     "context"
     "fmt"
     "log"
+    "os"
 
     "github.com/dylanmazurek/go-torbox/pkg/torbox"
 )
 
 func main() {
     ctx := context.Background()
-    
-    client, err := torbox.New(ctx, torbox.WithAPIKey("your-api-key"))
+
+    // Get API key from environment
+    apiKey := os.Getenv("TORBOX_API_KEY")
+    if apiKey == "" {
+        log.Fatal("TORBOX_API_KEY environment variable is not set")
+    }
+
+    // Create client
+    client, err := torbox.New(ctx, torbox.WithAPIKey(apiKey))
     if err != nil {
         log.Fatal(err)
     }
@@ -35,64 +58,41 @@ func main() {
         log.Fatal(err)
     }
 
-    for _, t := range torrents {
-        fmt.Printf("Torrent: %s (%.2f%%)\n", t.Name, t.Progress*100)
+    for _, torrent := range torrents {
+        fmt.Printf("ID: %d, Name: %s, Status: %s\n", 
+            torrent.ID, torrent.Name, torrent.DownloadState)
     }
 }
 ```
 
-## Features
+## Architecture
 
-### Torrent Management
-- ✅ Create torrents from magnet links or .torrent files
-- ✅ List active and queued torrents
-- ✅ Control torrents (pause, resume, delete, reannounce)
-- ✅ Get download URLs for torrent files
-- ✅ Check if torrents are cached
-- ✅ Get torrent info by hash
-- ✅ Search torrents
-- ✅ Export torrent data
+The client follows a service-oriented architecture with two main API surfaces:
 
-### Usenet Downloads
-- ✅ Create usenet downloads
-- ✅ List usenet downloads
-- ✅ Control usenet downloads (pause, resume, delete)
-- ✅ Get download URLs
-- ✅ Check usenet cache
+### Main Client
 
-### Web Downloads
-- ✅ Create web downloads from HTTP/HTTPS URLs
-- ✅ Control web downloads (pause, resume, delete)
+The main client acts as a factory that creates service instances with a shared HTTP client:
 
-### User Management
-- ✅ Get user information
-- ✅ Refresh authentication token
-- ✅ Add referral codes
+```go
+type Client struct {
+    General *general.GeneralService
+    Search  *search.SearchService
+}
+```
 
-### Notifications
-- ✅ Get RSS notifications
-- ✅ Get all notifications
-- ✅ Clear notifications
+### General Service
 
-### RSS Feeds
-- ✅ Add RSS feeds
-- ✅ Control RSS feeds (pause, resume, delete)
-- ✅ Modify RSS feed settings
+Handles the torrent lifecycle:
+- Create torrents via magnet link or .torrent file
+- Control torrent operations (pause, resume, delete)
+- Get download URLs for files
+- Manage active and queued torrents
 
-### Cloud Integrations
-- ✅ Google Drive authorization
-- ✅ Dropbox authorization
-- ✅ OneDrive authorization
-- ✅ Gofile integration
-- ✅ 1Fichier integration
-- ✅ Get integration job status
+### Search Service
 
-### Statistics
-- ✅ Get account statistics and usage
-
-### Search API
-- ✅ Search torrents by metadata
-- ✅ Get torrent metadata
+Handles torrent discovery:
+- Search for torrents
+- Fetch torrent metadata
 
 ## Usage Examples
 
@@ -102,136 +102,99 @@ func main() {
 import (
     "github.com/dylanmazurek/go-torbox/pkg/magnet"
     "github.com/dylanmazurek/go-torbox/pkg/torbox/models"
+    "github.com/dylanmazurek/go-torbox/pkg/torbox/constants"
 )
 
-magnetLink := "magnet:?xt=urn:btih:..."
-mag, err := magnet.NewMagnet(magnetLink)
+magnetLink, err := magnet.NewMagnet("magnet:?xt=urn:btih:...")
 if err != nil {
     log.Fatal(err)
 }
 
-name := "My Download"
-req := models.CreateTorrentRequest{
-    Magnet: mag,
-    Name:   &name,
+// Create with optional settings
+seedSetting := constants.Auto
+allowZip := true
+name := "My Torrent"
+asQueued := false
+
+request := models.CreateTorrentRequest{
+    Magnet:   magnetLink,
+    Seed:     &seedSetting,
+    AllowZip: &allowZip,
+    Name:     &name,
+    AsQueued: &asQueued,
 }
 
-torrent, err := client.General.CreateTorrent(req)
+torrent, err := client.General.CreateTorrent(request)
 if err != nil {
     log.Fatal(err)
 }
 
-fmt.Printf("Created torrent: %s (ID: %d)\n", torrent.Name, torrent.ID)
+fmt.Printf("Created torrent: %s\n", torrent.Name)
 ```
 
-### Checking if a Torrent is Cached
+### Creating a Torrent from File
 
 ```go
-hash := "abc123def456..."
-cacheInfo, err := client.General.CheckCached(hash)
+import (
+    "os"
+    "github.com/dylanmazurek/go-torbox/pkg/torbox/models"
+)
+
+fileData, err := os.ReadFile("path/to/file.torrent")
 if err != nil {
     log.Fatal(err)
 }
 
-if cacheInfo.Cached {
-    fmt.Printf("Torrent is cached! Name: %s, Size: %d\n", cacheInfo.Name, cacheInfo.Size)
-} else {
-    fmt.Println("Torrent is not cached")
+request := models.CreateTorrentRequest{
+    File: fileData,
+}
+
+torrent, err := client.General.CreateTorrent(request)
+if err != nil {
+    log.Fatal(err)
 }
 ```
 
-### Creating a Usenet Download
+### Controlling Torrents
 
 ```go
-link := "nzb-link-or-url"
-name := "My Usenet Download"
-req := models.CreateUsenetRequest{
-    Link: link,
-    Name: &name,
-}
+import "github.com/dylanmazurek/go-torbox/pkg/torbox/constants"
 
-usenet, err := client.General.CreateUsenetDownload(req)
-if err != nil {
-    log.Fatal(err)
-}
+// Pause an active torrent
+err := client.General.ControlActiveTorrent(torrentID, constants.ControlActiveOperationPause)
 
-fmt.Printf("Created usenet download: %s\n", usenet.Name)
+// Resume an active torrent
+err = client.General.ControlActiveTorrent(torrentID, constants.ControlActiveOperationResume)
+
+// Control any torrent (automatically routes to active or queued API)
+err = client.General.ControlAnyTorrent(torrentID, "pause")
 ```
 
-### Creating a Web Download
+### Getting Download URLs
 
 ```go
-link := "https://example.com/file.zip"
-name := "My Web Download"
-req := models.CreateWebDownloadRequest{
-    Link: link,
-    Name: &name,
-}
-
-webdl, err := client.General.CreateWebDownload(req)
+downloadURL, err := client.General.GetDownloadUrl(torrentID, fileID)
 if err != nil {
     log.Fatal(err)
 }
 
-fmt.Printf("Created web download: %s\n", webdl.Name)
+fmt.Printf("Download URL: %s\n", *downloadURL)
 ```
 
-### Getting User Information
+### Getting Queued Torrents
 
 ```go
-user, err := client.General.GetUser()
+queuedTorrents, err := client.General.GetQueuedTorrents()
 if err != nil {
     log.Fatal(err)
 }
 
-fmt.Printf("User: %s\n", user.Email)
-fmt.Printf("Plan: %s\n", user.Plan)
-fmt.Printf("Downloaded: %d bytes\n", user.TotalDownloaded)
-```
-
-### Getting Account Statistics
-
-```go
-stats, err := client.General.GetStats()
-if err != nil {
-    log.Fatal(err)
-}
-
-fmt.Printf("Total Torrents: %d\n", stats.TotalTorrents)
-fmt.Printf("Active Torrents: %d\n", stats.ActiveTorrents)
-fmt.Printf("Used Space: %d bytes\n", stats.UsedSpace)
-```
-
-### Adding an RSS Feed
-
-```go
-req := models.AddRSSRequest{
-    URL:  "https://example.com/feed.rss",
-    Name: "My RSS Feed",
-}
-
-feed, err := client.General.AddRSS(req)
-if err != nil {
-    log.Fatal(err)
-}
-
-fmt.Printf("Added RSS feed: %s (ID: %d)\n", feed.Name, feed.ID)
-```
-
-### Searching Torrents
-
-```go
-torrents, err := client.General.SearchTorrents("ubuntu")
-if err != nil {
-    log.Fatal(err)
-}
-
-for _, t := range torrents {
-    fmt.Printf("Found: %s (Size: %d)\n", t.Name, t.Size)
+for _, queued := range queuedTorrents {
+    fmt.Printf("Queued ID: %d, Name: %s\n", queued.ID, queued.Name)
 }
 ```
 
-### Using Search API
+### Searching for Torrents
 
 ```go
 // Search by IMDB ID
@@ -247,132 +210,223 @@ if err != nil {
 }
 ```
 
-### Controlling Downloads
+### Parsing Torrent Files
 
 ```go
-import "github.com/dylanmazurek/go-torbox/pkg/torbox/constants"
+import "github.com/dylanmazurek/go-torbox/pkg/torrent"
 
-// Pause a torrent
-err := client.General.ControlActiveTorrent(torrentID, constants.ControlActiveOperationPause)
+// Parse from file
+torrentInfo, err := torrent.ParseFromFile("path/to/file.torrent")
+if err != nil {
+    log.Fatal(err)
+}
 
-// Resume a torrent
-err = client.General.ControlActiveTorrent(torrentID, constants.ControlActiveOperationResume)
+fmt.Printf("InfoHash: %s\n", torrentInfo.InfoHash)
+fmt.Printf("Files: %d\n", len(torrentInfo.Files))
 
-// Delete a torrent
-err = client.General.ControlActiveTorrent(torrentID, constants.ControlActiveOperationDelete)
+// Parse from reader
+file, err := os.Open("path/to/file.torrent")
+if err != nil {
+    log.Fatal(err)
+}
+defer file.Close()
 
-// Control usenet downloads
-err = client.General.ControlUsenetDownload(usenetID, constants.ControlUsenetOperationPause)
-
-// Control web downloads
-err = client.General.ControlWebDownload(webID, constants.ControlWebDownloadOperationPause)
+torrentInfo, err = torrent.Parse(file)
 ```
 
-### Cloud Integration
+### Parsing Magnet Links
 
 ```go
-// Authorize Google Drive (code from OAuth flow)
-err := client.General.AuthorizeGoogleDrive(authCode)
+import "github.com/dylanmazurek/go-torbox/pkg/magnet"
 
-// Authorize Dropbox
-err = client.General.AuthorizeDropbox(authCode)
-
-// Check integration jobs
-jobs, err := client.General.GetIntegrationJobs()
-for _, job := range jobs {
-    fmt.Printf("Job: %s - %s (%.2f%%)\n", job.FileName, job.Status, job.Progress*100)
+magnetLink := "magnet:?xt=urn:btih:1234567890abcdef&dn=example"
+magnet, err := magnet.NewMagnet(magnetLink)
+if err != nil {
+    log.Fatal(err)
 }
+
+fmt.Printf("Hash: %s\n", magnet.Hash)
+fmt.Printf("Display Name: %s\n", magnet.DisplayName)
+```
+
+## API Reference
+
+### Client Options
+
+```go
+// Create client with API key
+client, err := torbox.New(ctx, torbox.WithAPIKey("your-api-key"))
+```
+
+### General Service Methods
+
+| Method | Description |
+|--------|-------------|
+| `GetActiveTorrents()` | Retrieve all active torrents |
+| `GetQueuedTorrents()` | Retrieve all queued torrents |
+| `CreateTorrent(request)` | Create a new torrent from magnet link or file |
+| `GetDownloadUrl(torrentId, fileId)` | Get download URL for a specific file |
+| `ControlActiveTorrent(id, operation)` | Control an active torrent (pause, resume, etc.) |
+| `ControlQueuedTorrent(id, operation)` | Control a queued torrent |
+| `ControlAnyTorrent(id, operation)` | Control any torrent (auto-routes to active/queued) |
+
+### Search Service Methods
+
+| Method | Description |
+|--------|-------------|
+| `GetTorrent(idType, id)` | Search for torrents by ID type (imdb, tmdb, etc.) |
+| `GetMeta(idType, id)` | Get torrent metadata by ID type |
+
+### Torrent States
+
+The library defines the following torrent states (in `pkg/torbox/constants/state.go`):
+
+- Processing: `checkingResumeData`, `checking`, `metaDL`, `paused`
+- Downloading: `downloading`, `stalled (no seeds)`, `stalledDL`
+- Uploading: `uploading`, `uploading (no peers)`
+- Completion: `completed`, `cached`
+
+### Seed Settings
+
+Available seed settings when creating torrents:
+
+- `constants.Auto` (1) - Automatically decide seeding behavior
+- `constants.Seed` (2) - Force seeding
+- `constants.NoSeed` (3) - Disable seeding
+
+### Control Operations
+
+Available operations for torrent control:
+
+**Active Torrents:**
+- `ControlActiveOperationPause` - Pause the torrent
+- `ControlActiveOperationResume` - Resume the torrent
+- `ControlActiveOperationReannounce` - Reannounce to trackers
+- `ControlActiveOperationDelete` - Delete the torrent
+
+**Queued Torrents:**
+- `ControlQueuedOperationStart` - Start the queued torrent
+- `ControlQueuedOperationDelete` - Delete the queued torrent
+
+## Advanced Features
+
+### Retry Logic
+
+The client automatically retries failed requests with exponential backoff:
+
+- Network errors: Retries up to 3 times with exponential delay
+- Rate limiting (429): Respects `Retry-After` header or uses exponential backoff
+- Server errors (5xx): Automatic retry with backoff
+- Configurable timeout (60 seconds default)
+
+### Logging
+
+The client uses structured logging with zerolog:
+
+```go
+import "github.com/dylanmazurek/go-torbox/internal/logger"
+
+ctx := context.Background()
+log.Logger = logger.New(ctx)
+```
+
+Set log level via environment variable:
+```bash
+export LOG_LEVEL=debug
+```
+
+### HTTP Client Configuration
+
+The client uses a custom transport layer with:
+- Connection pooling (10 max idle connections)
+- Keep-alive support
+- 60-second timeout for file operations
+- Automatic authentication header injection
+
+## Package Structure
+
+```
+pkg/
+├── torbox/              # Main client package
+│   ├── client.go        # Client factory
+│   ├── general/         # General API service
+│   ├── search/          # Search API service
+│   ├── models/          # Request/response models
+│   └── constants/       # API constants and enums
+├── magnet/              # Magnet link parser
+└── torrent/             # Torrent file parser
+
+internal/
+├── crypto/              # Cryptographic utilities
+├── logger/              # Logging setup
+└── form/                # Form encoding utilities
+
+cmd/
+└── main.go              # Example CLI application
 ```
 
 ## Environment Variables
 
-The SDK respects the following environment variables:
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `TORBOX_API_KEY` | Your TorBox API key | Yes |
+| `LOG_LEVEL` | Logging level (debug, info, warn, error) | No |
 
-- `TORBOX_API_KEY` - Your TorBox API key (required)
-- `LOG_LEVEL` - Logging level (debug, info, warn, error)
+## Development
 
-## Architecture
+### Prerequisites
 
-The SDK follows a service-oriented architecture:
+- Go 1.24.2 or later
 
-- **General Service** (`client.General`) - Core torrent, usenet, web downloads, user, RSS, and integration operations
-- **Search Service** (`client.Search`) - Torrent search and metadata lookup
+### Running Tests
 
-All services share a common HTTP client with:
-- Automatic authentication via API key
-- Retry logic with exponential backoff
-- Rate limiting detection and handling
-- Structured logging with zerolog
+```bash
+go test ./...
+```
+
+### Running the Example CLI
+
+```bash
+export TORBOX_API_KEY=your-api-key
+go run cmd/main.go
+```
+
+### Building
+
+```bash
+go build ./...
+```
+
+## API Endpoints
+
+The client interacts with the following TorBox API endpoints:
+
+- **General API**: `https://api.torbox.app/v1`
+- **Search API**: `https://search-api.torbox.app`
 
 ## Error Handling
 
-All methods return errors that include context from the API:
+The library uses Go's standard error handling. All methods return errors that should be checked:
 
 ```go
-torrent, err := client.General.GetTorrentInfo(hash)
+torrents, err := client.General.GetActiveTorrents()
 if err != nil {
-    // Error messages include API error details
-    log.Printf("Failed to get torrent info: %v", err)
+    // Handle error
+    log.Printf("Failed to get torrents: %v", err)
+    return
 }
 ```
 
-## API Coverage
+API errors include details from the TorBox API response:
 
-Based on the TorBox API v1 specification:
-
-### Torrents
-- ✅ `/api/torrents/createtorrent` - CreateTorrent
-- ✅ `/api/torrents/controltorrent` - ControlActiveTorrent
-- ✅ `/api/torrents/controlqueued` - ControlQueuedTorrent
-- ✅ `/api/torrents/requestdl` - GetDownloadUrl
-- ✅ `/api/torrents/mylist` - GetActiveTorrents
-- ✅ `/api/torrents/checkcached` - CheckCached
-- ✅ `/api/torrents/storesearch` - StoreSearch
-- ✅ `/api/torrents/search` - SearchTorrents
-- ✅ `/api/torrents/exportdata` - ExportData
-- ✅ `/api/torrents/torrentinfo` - GetTorrentInfo
-- ✅ `/api/torrents/getqueued` - GetQueuedTorrents
-
-### Usenet
-- ✅ `/api/usenet/createusenetdownload` - CreateUsenetDownload
-- ✅ `/api/usenet/controlusenetdownload` - ControlUsenetDownload
-- ✅ `/api/usenet/requestdl` - GetUsenetDownloadUrl
-- ✅ `/api/usenet/mylist` - GetUsenetList
-- ✅ `/api/usenet/checkcached` - CheckUsenetCached
-
-### Web Downloads
-- ✅ `/api/webdl/createwebdownload` - CreateWebDownload
-- ✅ `/api/webdl/controlwebdownload` - ControlWebDownload
-
-### User
-- ✅ `/api/user/refreshtoken` - RefreshToken
-- ✅ `/api/user/me` - GetUser
-- ✅ `/api/user/addreferral` - AddReferral
-
-### Notifications
-- ✅ `/api/notifications/rss` - GetRSSNotifications
-- ✅ `/api/notifications/mynotifications` - GetNotifications
-- ✅ `/api/notifications/clear` - ClearNotifications
-
-### RSS
-- ✅ `/api/rss/addrss` - AddRSS
-- ✅ `/api/rss/controlrss` - ControlRSS
-- ✅ `/api/rss/modifyrss` - ModifyRSS
-
-### Integration
-- ✅ `/api/integration/googledrive` - AuthorizeGoogleDrive
-- ✅ `/api/integration/dropbox` - AuthorizeDropbox
-- ✅ `/api/integration/onedrive` - AuthorizeOneDrive
-- ✅ `/api/integration/gofile` - AuthorizeGofile
-- ✅ `/api/integration/1fichier` - Authorize1Fichier
-- ✅ `/api/integration/jobs` - GetIntegrationJobs
-
-### Stats
-- ✅ `/api/stats` - GetStats
-
-### Search API
-- ✅ `/torrents/{type}:{id}` - GetTorrent
-- ✅ `/meta/{type}:{id}` - GetMeta
+```go
+type BaseResponse struct {
+    Success bool   `json:"success"`
+    Error   string `json:"error"`
+    Detail  string `json:"detail"`
+    Data    any    `json:"data"`
+}
+```
 
 ## Contributing
 
@@ -380,10 +434,19 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License.
+This project is provided as-is. Please refer to the repository for license information.
+
+## Links
+
+- [TorBox Website](https://torbox.app)
+- [TorBox API Documentation](https://torbox.app/api-docs)
+- [Go Package Documentation](https://pkg.go.dev/github.com/dylanmazurek/go-torbox)
 
 ## Acknowledgments
 
-- TorBox API documentation
-- Built with [zerolog](https://github.com/rs/zerolog) for structured logging
-- JSON unmarshaling with [marshmallow](https://github.com/perimeterx/marshmallow)
+This library uses the following open-source packages:
+
+- [zerolog](https://github.com/rs/zerolog) - Fast and simple logging
+- [marshmallow](https://github.com/perimeterx/marshmallow) - Flexible JSON unmarshaling
+- [bencode](https://github.com/zeebo/bencode) - Bencode encoder/decoder
+- [go-pretty](https://github.com/jedib0t/go-pretty) - Pretty table rendering
