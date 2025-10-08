@@ -101,9 +101,96 @@ log := log.Ctx(ctx).With().Str("component", "torbox").Logger()
 3. **Download**: Get signed download URLs for specific files
 4. **Control**: Unified `ControlAnyTorrent` handles routing to active/queued APIs
 
+## Code Style & Formatting
+
+### Go Standards
+- Follow standard Go formatting with `gofmt`
+- Use `go vet` for static analysis
+- Organize imports in groups: standard library, external packages, internal packages
+- Keep functions focused and small (prefer composition over large functions)
+
+### Naming Conventions
+- **Types**: PascalCase for exported types, camelCase for unexported
+- **Constants**: PascalCase with descriptive prefixes (e.g., `ControlActiveOperation`, `PATH_TORRENTS_GET_ACTIVE`)
+- **Packages**: Lowercase, single word when possible (e.g., `general`, `search`, `models`)
+- **Interfaces**: Use "-er" suffix for single-method interfaces
+- **Errors**: Prefix with `Err` for package-level errors (e.g., `ErrServerError`)
+
+### File Organization
+- Group related functionality in separate files (e.g., `active.go`, `queued.go`, `torrents.go`)
+- Place constants in dedicated files under `pkg/torbox/constants/`
+- Keep models in `pkg/torbox/models/` with one type per file when complex
+- Service methods organized by entity type (active torrents, queued torrents, etc.)
+
+## Build & Development Commands
+
+### Running the Project
+```bash
+# Set up environment
+export TORBOX_API_KEY="your-api-key"
+# Or use .env file (gitignored)
+
+# Run the example CLI
+go run cmd/main.go
+
+# Build the CLI
+go build -o torbox-cli cmd/main.go
+```
+
+### Testing
+```bash
+# Run all tests
+go test ./...
+
+# Run tests with verbose output
+go test -v ./...
+
+# Run tests for specific package
+go test ./pkg/magnet/...
+
+# Run with race detection
+go test -race ./...
+```
+
+### Code Quality
+```bash
+# Format code
+go fmt ./...
+
+# Run static analysis
+go vet ./...
+
+# Tidy dependencies
+go mod tidy
+```
+
+## Common Development Tasks
+
+### Adding a New Service Method
+1. Define request/response models in `pkg/torbox/models/`
+2. Add API path constant to `pkg/torbox/constants/constants.go`
+3. Implement method in appropriate service (`general` or `search`)
+4. Use `newRequest()` helper with appropriate body type
+5. Handle response with `do()` or `doWithRetry()`
+6. Add example usage to `cmd/main.go` if demonstrating new functionality
+
+### Adding New Constants
+- **API paths**: Add to `pkg/torbox/constants/constants.go`
+- **States**: Add to `pkg/torbox/constants/state.go`
+- **Operations**: Add to `pkg/torbox/constants/control.go`
+- Use typed constants (e.g., `type ControlActiveOperation string`) for type safety
+
+### Error Handling Best Practices
+- Define package-level errors in `pkg/torbox/errors/error.go`
+- Use `fmt.Errorf` with context for runtime errors
+- Check `BaseResponse.Success` before accessing data
+- Provide detailed error messages combining `Error` and `Detail` fields
+- Let retry logic handle transient failures automatically
+
 ## Key Files for Context
 - `pkg/torbox/client.go` - Entry point and service initialization
 - `pkg/torbox/general/service.go` - Core HTTP handling and retry logic
 - `pkg/torbox/constants/` - API paths, states, and operation enums
 - `pkg/torbox/models/torrent.go` - Complex JSON unmarshaling with embedded structs
 - `cmd/main.go` - Complete client usage example
+- `pkg/torbox/errors/error.go` - Package-level error definitions
