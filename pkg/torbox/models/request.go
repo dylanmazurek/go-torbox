@@ -41,3 +41,35 @@ type GetTorrentResponse struct {
 		Torrents []Torrent `json:"torrents"`
 	} `json:"data"`
 }
+
+type CheckCachedResponse struct {
+	BaseResponse
+	Data *CacheCheckResponse `json:"data"`
+}
+
+type CacheCheckResponse struct {
+	Name   string `json:"name"`
+	Size   int64  `json:"size"`
+	Hash   string `json:"hash"`
+	Cached bool   `json:"cached"`
+}
+
+type TorrentInfoResponse struct {
+	BaseResponse
+	Data *Torrent `json:"data"`
+}
+
+type ExportDataResponse struct {
+	BaseResponse
+	Data string `json:"data"`
+}
+
+type SearchTorrentsResponse struct {
+	BaseResponse
+	Data []Torrent `json:"data"`
+}
+
+type StoreSearchRequest struct {
+	Query string `json:"query"`
+}
+

@@ -136,3 +136,112 @@ func (s *GeneralService) ControlAnyTorrent(id int64, operation string) error {
 
 	return fmt.Errorf("torrent with ID %d is neither active nor queued", id)
 }
+
+func (s *GeneralService) CheckCached(hash string) (*models.CacheCheckResponse, error) {
+	params := &url.Values{}
+	params.Add("hash", hash)
+	params.Add("format", "list")
+
+	req, err := s.newRequest(http.MethodGet, constants.PATH_TORRENTS_CHECK_CACHED, params, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.CheckCachedResponse
+	err = s.do(req, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf("failed to check cache: %s", resp.Detail)
+	}
+
+	return resp.Data, nil
+}
+
+func (s *GeneralService) GetTorrentInfo(hash string) (*models.Torrent, error) {
+	params := &url.Values{}
+	params.Add("hash", hash)
+
+	req, err := s.newRequest(http.MethodGet, constants.PATH_TORRENTS_INFO, params, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.TorrentInfoResponse
+	err = s.do(req, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf("failed to get torrent info: %s", resp.Detail)
+	}
+
+	return resp.Data, nil
+}
+
+func (s *GeneralService) ExportData() (string, error) {
+	req, err := s.newRequest(http.MethodGet, constants.PATH_TORRENTS_EXPORT_DATA, nil, nil)
+	if err != nil {
+		return "", err
+	}
+
+	var resp models.ExportDataResponse
+	err = s.do(req, &resp)
+	if err != nil {
+		return "", err
+	}
+
+	if !resp.Success {
+		return "", fmt.Errorf("failed to export data: %s", resp.Detail)
+	}
+
+	return resp.Data, nil
+}
+
+func (s *GeneralService) SearchTorrents(query string) ([]models.Torrent, error) {
+	params := &url.Values{}
+	params.Add("query", query)
+
+	req, err := s.newRequest(http.MethodGet, constants.PATH_TORRENTS_SEARCH, params, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.SearchTorrentsResponse
+	err = s.do(req, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf("failed to search torrents: %s", resp.Detail)
+	}
+
+	return resp.Data, nil
+}
+
+func (s *GeneralService) StoreSearch(query string) error {
+	r := models.StoreSearchRequest{
+		Query: query,
+	}
+
+	req, err := s.newRequest(http.MethodPost, constants.PATH_TORRENTS_STORE_SEARCH, &url.Values{"bodyType": {"json"}}, r)
+	if err != nil {
+		return err
+	}
+
+	var resp models.BaseResponse
+	err = s.do(req, &resp)
+	if err != nil {
+		return err
+	}
+
+	if !resp.Success {
+		return fmt.Errorf("failed to store search: %s", resp.Detail)
+	}
+
+	return nil
+}
