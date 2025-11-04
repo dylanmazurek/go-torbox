@@ -6,8 +6,8 @@ import (
 
 	"github.com/dylanmazurek/go-torbox/internal/logger"
 	"github.com/dylanmazurek/go-torbox/pkg/torbox"
-	"github.com/dylanmazurek/go-torbox/pkg/torbox/models"
-	"github.com/jedib0t/go-pretty/v6/table"
+
+	"github.com/dylanmazurek/go-torbox/examples"
 	"github.com/rs/zerolog/log"
 )
 
@@ -29,32 +29,7 @@ func main() {
 		panic(err)
 	}
 
-	activeTorrents, err := client.General.GetActiveTorrents()
-	if err != nil {
-		log.Error().Err(err).Msg("failed to get download URL")
-		return
-	}
-
-	printTorrents(activeTorrents)
-}
-
-func printTorrents(torrents []models.Torrent) {
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"ID", "Name", "Status", "Size", "Progress", "Download Speed", "Upload Speed", "Ratio"})
-
-	for _, torrent := range torrents {
-		t.AppendRow([]interface{}{
-			torrent.ID,
-			torrent.Name,
-			torrent.DownloadState,
-			torrent.Size,
-			torrent.Progress,
-			torrent.DownloadSpeed,
-			torrent.UploadSpeed,
-			torrent.Ratio,
-		})
-	}
-
-	t.Render()
+	examples.PrintUser(client)
+	examples.PrintActiveTorrents(client)
+	examples.PrintQueuedTorrents(client)
 }

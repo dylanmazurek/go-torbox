@@ -3,20 +3,20 @@ package general
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 
+	"github.com/dylanmazurek/go-torbox/pkg/goclient/request"
 	"github.com/dylanmazurek/go-torbox/pkg/torbox/constants"
 	"github.com/dylanmazurek/go-torbox/pkg/torbox/models"
 )
 
 func (s *GeneralService) CreateWebDownload(r models.CreateWebDownloadRequest) (*models.WebDownload, error) {
-	req, err := s.newRequest(http.MethodPost, constants.PATH_WEBDL_CREATE, &url.Values{"bodyType": {"json"}}, r)
+	req, err := s.internalClient.NewRequest(http.MethodPost, constants.PATH_WEBDL_CREATE, request.WithJSONBody(r))
 	if err != nil {
 		return nil, err
 	}
 
 	var resp models.CreateWebDownloadResponse
-	err = s.do(req, &resp)
+	err = s.internalClient.Do(req, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -34,13 +34,13 @@ func (s *GeneralService) ControlWebDownload(webId int64, operation constants.Con
 		Operation: operation,
 	}
 
-	req, err := s.newRequest(http.MethodPost, constants.PATH_WEBDL_CONTROL, &url.Values{"bodyType": {"json"}}, r)
+	req, err := s.internalClient.NewRequest(http.MethodPost, constants.PATH_WEBDL_CONTROL, request.WithJSONBody(r))
 	if err != nil {
 		return err
 	}
 
 	var resp models.BaseResponse
-	err = s.do(req, &resp)
+	err = s.internalClient.Do(req, &resp)
 	if err != nil {
 		return err
 	}

@@ -13,5 +13,7 @@ type addAuthHeaderTransport struct {
 func (adt *addAuthHeaderTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	bearer := fmt.Sprintf("Bearer %s", adt.APIKey)
 	req.Header.Add("Authorization", bearer)
-	return adt.T.RoundTrip(req)
+
+	resp, err := adt.T.RoundTrip(req)
+	return resp, err
 }

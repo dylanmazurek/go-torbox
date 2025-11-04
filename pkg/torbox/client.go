@@ -26,7 +26,7 @@ func New(ctx context.Context, opts ...Option) (*Client, error) {
 	}
 
 	httpAuthClient := &http.Client{
-		Timeout: 60 * time.Second, // Increased timeout for file operations
+		Timeout: 60 * time.Second,
 		Transport: &addAuthHeaderTransport{
 			T: &http.Transport{
 				MaxIdleConns:        10,

@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"slices"
 
+	"github.com/dylanmazurek/go-torbox/pkg/goclient/request"
 	"github.com/dylanmazurek/go-torbox/pkg/torbox/constants"
 	"github.com/dylanmazurek/go-torbox/pkg/torbox/models"
 )
@@ -16,6 +17,7 @@ func (s *GeneralService) CreateTorrent(r models.CreateTorrentRequest) (*models.T
 	var params = &url.Values{}
 	var reqBody *bytes.Buffer
 
+	reqOptions := []request.Option{}
 	if r.File != nil {
 		body := &bytes.Buffer{}
 		writer := multipart.NewWriter(body)
@@ -27,10 +29,10 @@ func (s *GeneralService) CreateTorrent(r models.CreateTorrentRequest) (*models.T
 		}
 
 		writer.Close()
-		params.Set("bodyType", "file")
 		params.Set("Content-Type", writer.FormDataContentType())
 
 		reqBody = body
+		reqOptions = append(reqOptions, request.WithFileBody(reqBody))
 	} else if r.Magnet != nil {
 		body := &bytes.Buffer{}
 
@@ -51,15 +53,16 @@ func (s *GeneralService) CreateTorrent(r models.CreateTorrentRequest) (*models.T
 		params.Set("Content-Type", "application/x-www-form-urlencoded")
 
 		reqBody = body
+		reqOptions = append(reqOptions, request.WithFormBody(reqBody))
 	}
 
-	req, err := s.newRequest(http.MethodPost, constants.PATH_TORRENTS_CREATE, params, reqBody)
+	req, err := s.internalClient.NewRequest(http.MethodPost, constants.PATH_TORRENTS_CREATE, reqOptions...)
 	if err != nil {
 		return nil, err
 	}
 
 	var resp models.CreateTorrentResponse
-	err = s.do(req, &resp)
+	err = s.internalClient.Do(req, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -77,13 +80,13 @@ func (s *GeneralService) GetDownloadUrl(torrentId int64, fileId int64) (*string,
 	params.Add("file_id", fmt.Sprintf("%d", fileId))
 	params.Add("token", "")
 
-	req, err := s.newRequest(http.MethodGet, constants.PATH_TORRENTS_GET_DOWNLOAD_URL, params, nil)
+	req, err := s.internalClient.NewRequest(http.MethodGet, constants.PATH_TORRENTS_GET_DOWNLOAD_URL, request.WithURLParams(params))
 	if err != nil {
 		return nil, err
 	}
 
 	var resp models.GetDownloadUrlResponse
-	err = s.do(req, &resp)
+	err = s.internalClient.Do(req, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +122,7 @@ func (s *GeneralService) ControlAnyTorrent(id int64, operation string) error {
 		return s.ControlActiveTorrent(id, activeOperation)
 	}
 
-	queuedTorrents, err := s.GetQueuedTorrents()
+	queuedTorrents, err := s.GetQueuedTorrents(true)
 	if err != nil {
 		return err
 	}
@@ -142,13 +145,13 @@ func (s *GeneralService) CheckCached(hash string) (*models.CacheCheckResponse, e
 	params.Add("hash", hash)
 	params.Add("format", "list")
 
-	req, err := s.newRequest(http.MethodGet, constants.PATH_TORRENTS_CHECK_CACHED, params, nil)
+	req, err := s.internalClient.NewRequest(http.MethodGet, constants.PATH_TORRENTS_CHECK_CACHED, request.WithURLParams(params))
 	if err != nil {
 		return nil, err
 	}
 
 	var resp models.CheckCachedResponse
-	err = s.do(req, &resp)
+	err = s.internalClient.Do(req, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -164,13 +167,13 @@ func (s *GeneralService) GetTorrentInfo(hash string) (*models.Torrent, error) {
 	params := &url.Values{}
 	params.Add("hash", hash)
 
-	req, err := s.newRequest(http.MethodGet, constants.PATH_TORRENTS_INFO, params, nil)
+	req, err := s.internalClient.NewRequest(http.MethodGet, constants.PATH_TORRENTS_INFO, request.WithURLParams(params))
 	if err != nil {
 		return nil, err
 	}
 
 	var resp models.TorrentInfoResponse
-	err = s.do(req, &resp)
+	err = s.internalClient.Do(req, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -182,36 +185,17 @@ func (s *GeneralService) GetTorrentInfo(hash string) (*models.Torrent, error) {
 	return resp.Data, nil
 }
 
-func (s *GeneralService) ExportData() (string, error) {
-	req, err := s.newRequest(http.MethodGet, constants.PATH_TORRENTS_EXPORT_DATA, nil, nil)
-	if err != nil {
-		return "", err
-	}
-
-	var resp models.ExportDataResponse
-	err = s.do(req, &resp)
-	if err != nil {
-		return "", err
-	}
-
-	if !resp.Success {
-		return "", fmt.Errorf("failed to export data: %s", resp.Detail)
-	}
-
-	return resp.Data, nil
-}
-
 func (s *GeneralService) SearchTorrents(query string) ([]models.Torrent, error) {
 	params := &url.Values{}
 	params.Add("query", query)
 
-	req, err := s.newRequest(http.MethodGet, constants.PATH_TORRENTS_SEARCH, params, nil)
+	req, err := s.internalClient.NewRequest(http.MethodGet, constants.PATH_TORRENTS_SEARCH, request.WithURLParams(params))
 	if err != nil {
 		return nil, err
 	}
 
 	var resp models.SearchTorrentsResponse
-	err = s.do(req, &resp)
+	err = s.internalClient.Do(req, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -228,13 +212,13 @@ func (s *GeneralService) StoreSearch(query string) error {
 		Query: query,
 	}
 
-	req, err := s.newRequest(http.MethodPost, constants.PATH_TORRENTS_STORE_SEARCH, &url.Values{"bodyType": {"json"}}, r)
+	req, err := s.internalClient.NewRequest(http.MethodPost, constants.PATH_TORRENTS_STORE_SEARCH, request.WithJSONBody(r))
 	if err != nil {
 		return err
 	}
 
 	var resp models.BaseResponse
-	err = s.do(req, &resp)
+	err = s.internalClient.Do(req, &resp)
 	if err != nil {
 		return err
 	}

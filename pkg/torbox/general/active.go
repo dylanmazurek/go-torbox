@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/dylanmazurek/go-torbox/pkg/goclient/request"
 	"github.com/dylanmazurek/go-torbox/pkg/torbox/constants"
 	"github.com/dylanmazurek/go-torbox/pkg/torbox/models"
 )
@@ -12,13 +13,13 @@ func (s *GeneralService) GetActiveTorrents() ([]models.Torrent, error) {
 	var params = &url.Values{}
 	params.Add("bypass_cache", "true")
 
-	req, err := s.newRequest(http.MethodGet, constants.PATH_TORRENTS_GET_ACTIVE, params, nil)
+	req, err := s.internalClient.NewRequest(http.MethodGet, constants.PATH_TORRENTS_GET_ACTIVE, request.WithURLParams(params))
 	if err != nil {
 		return nil, err
 	}
 
 	var resp models.GetActiveTorrentsResponse
-	err = s.do(req, &resp)
+	err = s.internalClient.Do(req, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -32,13 +33,13 @@ func (s *GeneralService) ControlActiveTorrent(torrentId int64, operation constan
 		Operation: operation,
 	}
 
-	req, err := s.newRequest(http.MethodPost, constants.PATH_TORRENTS_CONTROL_ACTIVE, &url.Values{"bodyType": {"json"}}, r)
+	req, err := s.internalClient.NewRequest(http.MethodPost, constants.PATH_TORRENTS_CONTROL_ACTIVE, request.WithJSONBody(r))
 	if err != nil {
 		return err
 	}
 
 	var resp models.ControlActiveTorrentResponse
-	err = s.do(req, &resp)
+	err = s.internalClient.Do(req, &resp)
 	if err != nil {
 		return err
 	}
