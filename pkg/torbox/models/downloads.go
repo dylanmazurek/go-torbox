@@ -1,7 +1,5 @@
 package models
 
-import "github.com/dylanmazurek/go-torbox/pkg/torbox/constants"
-
 // Usenet models
 type UsenetDownload struct {
 	ID             int64   `json:"id"`
@@ -35,10 +33,10 @@ type GetUsenetListResponse struct {
 	Data []UsenetDownload `json:"data"`
 }
 
-type ControlUsenetRequest struct {
-	UsenetID  int64                          `json:"usenet_id"`
-	Operation constants.ControlUsenetOperation `json:"operation"`
-}
+// type ControlUsenetRequest struct {
+// 	UsenetID  int64                          `json:"usenet_id"`
+// 	Operation constants.ControlUsenetOperation `json:"operation"`
+// }
 
 // Web Download models
 type WebDownload struct {
@@ -66,7 +64,7 @@ type CreateWebDownloadResponse struct {
 	Data *WebDownload `json:"data"`
 }
 
-type ControlWebDownloadRequest struct {
-	WebID     int64                                 `json:"web_id"`
-	Operation constants.ControlWebDownloadOperation `json:"operation"`
-}
+// type ControlWebDownloadRequest struct {
+// 	WebID     int64                                 `json:"web_id"`
+// 	Operation constants.ControlWebDownloadOperation `json:"operation"`
+// }

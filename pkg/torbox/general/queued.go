@@ -10,16 +10,22 @@ import (
 	"github.com/dylanmazurek/go-torbox/pkg/torbox/models"
 )
 
-func (s *GeneralService) GetQueuedTorrents(bypassCache bool) ([]models.QueuedDownload, error) {
-	var params = &url.Values{}
-	params.Add("bypass_cache", fmt.Sprintf("%t", bypassCache))
+func (s *GeneralService) GetQueuedTorrents(bypassCache *bool) ([]models.QueuedDownload, error) {
+	var params url.Values
+	if bypassCache != nil {
+		params.Add("bypass_cache", fmt.Sprintf("%t", bypassCache))
+	}
 
-	req, err := s.internalClient.NewRequest(http.MethodGet, constants.PATH_TORRENTS_GET_QUEUED, request.WithURLParams(params))
+	req, err := s.internalClient.NewRequest(http.MethodGet, constants.PATH_TORRENTS_GET_QUEUED, request.WithURLParams(&params))
 	if err != nil {
 		return nil, err
 	}
 
-	var resp models.GetQueuedTorrentsResponse
+	var resp struct {
+		models.BaseResponse
+		Data []models.QueuedDownload `json:"data"`
+	}
+
 	err = s.internalClient.Do(req, &resp)
 	if err != nil {
 		return nil, err
@@ -28,18 +34,21 @@ func (s *GeneralService) GetQueuedTorrents(bypassCache bool) ([]models.QueuedDow
 	return resp.Data, nil
 }
 
-func (s *GeneralService) ControlQueuedTorrent(queuedId int64, operation constants.ControlQueuedOperation) error {
-	r := models.ControlQueuedTorrentRequest{
-		QueuedId:  queuedId,
-		Operation: operation,
-	}
+type ControlQueuedTorrentRequest struct {
+	QueuedId  int64                                   `json:"queued_id"`
+	Operation constants.ControlQueuedTorrentOperation `json:"operation"`
+}
 
+func (s *GeneralService) ControlQueuedTorrent(r ControlQueuedTorrentRequest) error {
 	req, err := s.internalClient.NewRequest(http.MethodPost, constants.PATH_TORRENTS_CONTROL_QUEUED, request.WithJSONBody(r))
 	if err != nil {
 		return err
 	}
 
-	var resp models.ControlQueuedTorrentResponse
+	var resp struct {
+		models.BaseResponse
+	}
+
 	err = s.internalClient.Do(req, &resp)
 	if err != nil {
 		return err

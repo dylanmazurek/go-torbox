@@ -3,6 +3,7 @@ package examples
 import (
 	"fmt"
 
+	"github.com/aws/smithy-go/ptr"
 	"github.com/dylanmazurek/go-torbox/pkg/torbox"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/rs/zerolog/log"
@@ -33,7 +34,7 @@ func PrintActiveTorrents(client *torbox.Client) {
 }
 
 func PrintQueuedTorrents(client *torbox.Client) {
-	queuedTorrents, err := client.General.GetQueuedTorrents(true)
+	queuedTorrents, err := client.General.GetQueuedTorrents(ptr.Bool(true))
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get queued torrents")
 		return

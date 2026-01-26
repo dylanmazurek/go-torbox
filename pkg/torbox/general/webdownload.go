@@ -1,53 +1,44 @@
 package general
 
-import (
-	"fmt"
-	"net/http"
+// func (s *GeneralService) CreateWebDownload(r models.CreateWebDownloadRequest) (*models.WebDownload, error) {
+// 	req, err := s.internalClient.NewRequest(http.MethodPost, constants.PATH_WEBDL_CREATE, request.WithJSONBody(r))
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	"github.com/dylanmazurek/go-torbox/pkg/goclient/request"
-	"github.com/dylanmazurek/go-torbox/pkg/torbox/constants"
-	"github.com/dylanmazurek/go-torbox/pkg/torbox/models"
-)
+// 	var resp models.CreateWebDownloadResponse
+// 	err = s.internalClient.Do(req, &resp)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-func (s *GeneralService) CreateWebDownload(r models.CreateWebDownloadRequest) (*models.WebDownload, error) {
-	req, err := s.internalClient.NewRequest(http.MethodPost, constants.PATH_WEBDL_CREATE, request.WithJSONBody(r))
-	if err != nil {
-		return nil, err
-	}
+// 	if !resp.Success {
+// 		return nil, fmt.Errorf("failed to create web download: %s", resp.Detail)
+// 	}
 
-	var resp models.CreateWebDownloadResponse
-	err = s.internalClient.Do(req, &resp)
-	if err != nil {
-		return nil, err
-	}
+// 	return resp.Data, nil
+// }
 
-	if !resp.Success {
-		return nil, fmt.Errorf("failed to create web download: %s", resp.Detail)
-	}
+// func (s *GeneralService) ControlWebDownload(webId int64, operation constants.ControlWebDownloadOperation) error {
+// 	r := models.ControlWebDownloadRequest{
+// 		WebID:     webId,
+// 		Operation: operation,
+// 	}
 
-	return resp.Data, nil
-}
+// 	req, err := s.internalClient.NewRequest(http.MethodPost, constants.PATH_WEBDL_CONTROL, request.WithJSONBody(r))
+// 	if err != nil {
+// 		return err
+// 	}
 
-func (s *GeneralService) ControlWebDownload(webId int64, operation constants.ControlWebDownloadOperation) error {
-	r := models.ControlWebDownloadRequest{
-		WebID:     webId,
-		Operation: operation,
-	}
+// 	var resp models.BaseResponse
+// 	err = s.internalClient.Do(req, &resp)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	req, err := s.internalClient.NewRequest(http.MethodPost, constants.PATH_WEBDL_CONTROL, request.WithJSONBody(r))
-	if err != nil {
-		return err
-	}
+// 	if !resp.Success {
+// 		return fmt.Errorf("failed to control web download: %s", resp.Detail)
+// 	}
 
-	var resp models.BaseResponse
-	err = s.internalClient.Do(req, &resp)
-	if err != nil {
-		return err
-	}
-
-	if !resp.Success {
-		return fmt.Errorf("failed to control web download: %s", resp.Detail)
-	}
-
-	return nil
-}
+// 	return nil
+// }

@@ -1,6 +1,6 @@
 module github.com/dylanmazurek/go-torbox
 
-go 1.24.2
+go 1.25.3
 
 require github.com/rs/zerolog v1.34.0
 
@@ -13,6 +13,7 @@ require (
 )
 
 require (
+	github.com/aws/smithy-go v1.23.2
 	github.com/jedib0t/go-pretty/v6 v6.6.8
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect

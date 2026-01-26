@@ -8,12 +8,46 @@ import (
 	"net/url"
 	"slices"
 
+	"github.com/aws/smithy-go/ptr"
 	"github.com/dylanmazurek/go-torbox/pkg/goclient/request"
+	"github.com/dylanmazurek/go-torbox/pkg/magnet"
 	"github.com/dylanmazurek/go-torbox/pkg/torbox/constants"
 	"github.com/dylanmazurek/go-torbox/pkg/torbox/models"
 )
 
-func (s *GeneralService) CreateTorrent(r models.CreateTorrentRequest) (*models.Torrent, error) {
+func (s *GeneralService) FetchDownloadUrl(torrentId int64, fileId int64) (*string, error) {
+	var params url.Values
+	params.Add("torrent_id", fmt.Sprintf("%d", torrentId))
+	params.Add("file_id", fmt.Sprintf("%d", fileId))
+
+	req, err := s.internalClient.NewRequest(http.MethodGet, constants.PATH_TORRENTS_GET_DOWNLOAD_URL, request.WithURLParams(&params))
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		models.BaseResponse
+		DownloadUrl string `json:"data"`
+	}
+
+	err = s.internalClient.Do(req, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return &resp.DownloadUrl, nil
+}
+
+type CreateTorrentRequest struct {
+	Magnet   *magnet.Magnet         `form:"magnet,omitempty"`
+	File     []byte                 `form:"file,omitempty"`
+	Seed     *constants.SeedSetting `form:"seed,omitempty"`
+	AllowZip *bool                  `form:"allow_zip,omitempty"`
+	Name     *string                `form:"name,omitempty"`
+	AsQueued *bool                  `form:"as_queued,omitempty"`
+}
+
+func (s *GeneralService) CreateTorrent(r CreateTorrentRequest) (*models.Torrent, error) {
 	var params = &url.Values{}
 	var reqBody *bytes.Buffer
 
@@ -61,7 +95,11 @@ func (s *GeneralService) CreateTorrent(r models.CreateTorrentRequest) (*models.T
 		return nil, err
 	}
 
-	var resp models.CreateTorrentResponse
+	var resp struct {
+		models.BaseResponse
+		Data *models.Torrent `json:"data"`
+	}
+
 	err = s.internalClient.Do(req, &resp)
 	if err != nil {
 		return nil, err
@@ -74,40 +112,8 @@ func (s *GeneralService) CreateTorrent(r models.CreateTorrentRequest) (*models.T
 	return resp.Data, nil
 }
 
-func (s *GeneralService) GetDownloadUrl(torrentId int64, fileId int64) (*string, error) {
-	params := &url.Values{}
-	params.Add("torrent_id", fmt.Sprintf("%d", torrentId))
-	params.Add("file_id", fmt.Sprintf("%d", fileId))
-	params.Add("token", "")
-
-	req, err := s.internalClient.NewRequest(http.MethodGet, constants.PATH_TORRENTS_GET_DOWNLOAD_URL, request.WithURLParams(params))
-	if err != nil {
-		return nil, err
-	}
-
-	var resp models.GetDownloadUrlResponse
-	err = s.internalClient.Do(req, &resp)
-	if err != nil {
-		return nil, err
-	}
-
-	if !resp.Success {
-		if resp.Error != "" && resp.Detail != "" {
-			return nil, fmt.Errorf("failed to get download URL: %s - %s", resp.Error, resp.Detail)
-		} else if resp.Error != "" {
-			return nil, fmt.Errorf("failed to get download URL: %s", resp.Error)
-		} else if resp.Detail != "" {
-			return nil, fmt.Errorf("failed to get download URL: %s", resp.Detail)
-		} else {
-			return nil, fmt.Errorf("failed to get download URL: unknown error")
-		}
-	}
-
-	return &resp.DownloadUrl, nil
-}
-
-func (s *GeneralService) ControlAnyTorrent(id int64, operation string) error {
-	activeTorrents, err := s.GetActiveTorrents()
+func (s *GeneralService) ControlTorrent(id int64, operation string) error {
+	activeTorrents, err := s.ListActiveTorrents(true)
 	if err != nil {
 		return err
 	}
@@ -117,12 +123,16 @@ func (s *GeneralService) ControlAnyTorrent(id int64, operation string) error {
 	})
 
 	if isActive {
-		activeOperation := constants.ControlActiveOperation(operation)
+		var activeOperation constants.ControlActiveTorrentOperation
+		err := activeOperation.FromString(operation)
+		if err != nil {
+			return err
+		}
 
 		return s.ControlActiveTorrent(id, activeOperation)
 	}
 
-	queuedTorrents, err := s.GetQueuedTorrents(true)
+	queuedTorrents, err := s.GetQueuedTorrents(ptr.Bool(true))
 	if err != nil {
 		return err
 	}
@@ -132,100 +142,15 @@ func (s *GeneralService) ControlAnyTorrent(id int64, operation string) error {
 	})
 
 	if isQueued {
-		queuedOperation := constants.ControlQueuedOperation(operation)
+		var controlQueuedRequest ControlQueuedTorrentRequest
+		controlQueuedRequest.QueuedId = id
+		err := controlQueuedRequest.Operation.FromString(operation)
+		if err != nil {
+			return err
+		}
 
-		return s.ControlQueuedTorrent(id, queuedOperation)
+		return s.ControlQueuedTorrent(controlQueuedRequest)
 	}
 
 	return fmt.Errorf("torrent with ID %d is neither active nor queued", id)
-}
-
-func (s *GeneralService) CheckCached(hash string) (*models.CacheCheckResponse, error) {
-	params := &url.Values{}
-	params.Add("hash", hash)
-	params.Add("format", "list")
-
-	req, err := s.internalClient.NewRequest(http.MethodGet, constants.PATH_TORRENTS_CHECK_CACHED, request.WithURLParams(params))
-	if err != nil {
-		return nil, err
-	}
-
-	var resp models.CheckCachedResponse
-	err = s.internalClient.Do(req, &resp)
-	if err != nil {
-		return nil, err
-	}
-
-	if !resp.Success {
-		return nil, fmt.Errorf("failed to check cache: %s", resp.Detail)
-	}
-
-	return resp.Data, nil
-}
-
-func (s *GeneralService) GetTorrentInfo(hash string) (*models.Torrent, error) {
-	params := &url.Values{}
-	params.Add("hash", hash)
-
-	req, err := s.internalClient.NewRequest(http.MethodGet, constants.PATH_TORRENTS_INFO, request.WithURLParams(params))
-	if err != nil {
-		return nil, err
-	}
-
-	var resp models.TorrentInfoResponse
-	err = s.internalClient.Do(req, &resp)
-	if err != nil {
-		return nil, err
-	}
-
-	if !resp.Success {
-		return nil, fmt.Errorf("failed to get torrent info: %s", resp.Detail)
-	}
-
-	return resp.Data, nil
-}
-
-func (s *GeneralService) SearchTorrents(query string) ([]models.Torrent, error) {
-	params := &url.Values{}
-	params.Add("query", query)
-
-	req, err := s.internalClient.NewRequest(http.MethodGet, constants.PATH_TORRENTS_SEARCH, request.WithURLParams(params))
-	if err != nil {
-		return nil, err
-	}
-
-	var resp models.SearchTorrentsResponse
-	err = s.internalClient.Do(req, &resp)
-	if err != nil {
-		return nil, err
-	}
-
-	if !resp.Success {
-		return nil, fmt.Errorf("failed to search torrents: %s", resp.Detail)
-	}
-
-	return resp.Data, nil
-}
-
-func (s *GeneralService) StoreSearch(query string) error {
-	r := models.StoreSearchRequest{
-		Query: query,
-	}
-
-	req, err := s.internalClient.NewRequest(http.MethodPost, constants.PATH_TORRENTS_STORE_SEARCH, request.WithJSONBody(r))
-	if err != nil {
-		return err
-	}
-
-	var resp models.BaseResponse
-	err = s.internalClient.Do(req, &resp)
-	if err != nil {
-		return err
-	}
-
-	if !resp.Success {
-		return fmt.Errorf("failed to store search: %s", resp.Detail)
-	}
-
-	return nil
 }
