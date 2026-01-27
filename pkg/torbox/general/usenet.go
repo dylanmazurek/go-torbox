@@ -3,6 +3,7 @@ package general
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/dylanmazurek/go-torbox/pkg/goclient/request"
 	"github.com/dylanmazurek/go-torbox/pkg/torbox/constants"
@@ -28,27 +29,76 @@ func (s *GeneralService) CreateUsenetDownload(r models.CreateUsenetRequest) (*mo
 	return resp.Data, nil
 }
 
-// func (s *GeneralService) GetUsenetList() ([]models.UsenetDownload, error) {
-// 	params := &url.Values{}
-// 	params.Add("bypass_cache", "true")
+func (s *GeneralService) GetUsenetList(bypassCache *bool) ([]models.UsenetDownload, error) {
+	params := make(url.Values)
+	if bypassCache != nil {
+		params.Add("bypass_cache", fmt.Sprintf("%t", *bypassCache))
+	}
 
-// 	req, err := s.newRequest(http.MethodGet, constants.PATH_USENET_GET_LIST, params, nil)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	req, err := s.internalClient.NewRequest(http.MethodGet, constants.PATH_USENET_GET_LIST, request.WithURLParams(&params))
+	if err != nil {
+		return nil, err
+	}
 
-// 	var resp models.GetUsenetListResponse
-// 	err = s.do(req, &resp)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	var resp models.GetUsenetListResponse
+	err = s.internalClient.Do(req, &resp)
+	if err != nil {
+		return nil, err
+	}
 
-// 	if !resp.Success {
-// 		return nil, fmt.Errorf("failed to get usenet list: %s", resp.Detail)
-// 	}
+	if !resp.Success {
+		return nil, fmt.Errorf("failed to get usenet list: %s", resp.Detail)
+	}
 
-// 	return resp.Data, nil
-// }
+	return resp.Data, nil
+}
+
+func (s *GeneralService) FetchUsenetDownloadUrl(usenetId int64, fileId int64) (*string, error) {
+	params := make(url.Values)
+	params.Add("usenet_id", fmt.Sprintf("%d", usenetId))
+	params.Add("file_id", fmt.Sprintf("%d", fileId))
+
+	req, err := s.internalClient.NewRequest(http.MethodGet, constants.PATH_USENET_GET_DOWNLOAD, request.WithURLParams(&params))
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		models.BaseResponse
+		DownloadUrl string `json:"data"`
+	}
+
+	err = s.internalClient.Do(req, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return &resp.DownloadUrl, nil
+}
+
+func (s *GeneralService) ControlUsenetDownload(usenetId int64, operation string) error {
+	r := models.ControlUsenetRequest{
+		UsenetID:  usenetId,
+		Operation: operation,
+	}
+
+	req, err := s.internalClient.NewRequest(http.MethodPost, constants.PATH_USENET_CONTROL, request.WithJSONBody(r))
+	if err != nil {
+		return err
+	}
+
+	var resp models.BaseResponse
+	err = s.internalClient.Do(req, &resp)
+	if err != nil {
+		return err
+	}
+
+	if !resp.Success {
+		return fmt.Errorf("failed to control usenet download: %s", resp.Detail)
+	}
+
+	return nil
+}
 
 // func (s *GeneralService) ControlUsenetDownload(usenetId int64, operation constants.ControlUsenetOperation) error {
 // 	r := models.ControlUsenetRequest{

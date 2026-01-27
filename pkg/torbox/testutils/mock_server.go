@@ -62,8 +62,22 @@ func (m *MockTorBox) setupRoutes() {
 	m.Mux.HandleFunc("/v1/api/torrents/requestdl", m.handleTorrentDownloadURL)
 	m.Mux.HandleFunc("/v1/api/torrents/createtorrent", m.handleTorrentCreate)
 	m.Mux.HandleFunc("/v1/api/torrents/controltorrent", m.handleControlActiveTorrent)
+	m.Mux.HandleFunc("/v1/api/torrents/checkcached", m.handleCheckCached)
+	m.Mux.HandleFunc("/v1/api/torrents/exportdata", m.handleExportData)
+	m.Mux.HandleFunc("/v1/api/torrents/magnettofile", m.handleMagnetToFile)
 	m.Mux.HandleFunc("/v1/api/queued/getqueued", m.handleQueuedList)
 	m.Mux.HandleFunc("/v1/api/queued/controlqueued", m.handleControlQueuedTorrent)
+	m.Mux.HandleFunc("/v1/api/usenet/mylist", m.handleUsenetList)
+	m.Mux.HandleFunc("/v1/api/usenet/requestdl", m.handleUsenetDownloadURL)
+	m.Mux.HandleFunc("/v1/api/usenet/controlusenetdownload", m.handleControlUsenet)
+	m.Mux.HandleFunc("/v1/api/webdl/mylist", m.handleWebDownloadList)
+	m.Mux.HandleFunc("/v1/api/webdl/requestdl", m.handleWebDownloadURL)
+	m.Mux.HandleFunc("/v1/api/webdl/controlwebdownload", m.handleControlWebDownload)
+	m.Mux.HandleFunc("/v1/api/stats", m.handleStats)
+	m.Mux.HandleFunc("/v1/api/notifications/mynotifications", m.handleNotificationsList)
+	m.Mux.HandleFunc("/v1/api/notifications/clear", m.handleClearNotifications)
+	m.Mux.HandleFunc("/v1/api/rss/getfeeds", m.handleRSSGetFeeds)
+	m.Mux.HandleFunc("/v1/api/rss/getfeeditems", m.handleRSSGetFeedItems)
 }
 
 func (m *MockTorBox) handleUserMe(w http.ResponseWriter, r *http.Request) {
@@ -349,4 +363,312 @@ func formatTime(t *time.Time) string {
 	}
 
 	return t.UTC().Format("2006-01-02T15:04:05Z")
+}
+
+func (m *MockTorBox) handleCheckCached(w http.ResponseWriter, r *http.Request) {
+	response := map[string]any{
+		"success": true,
+		"detail":  "Checked cached status",
+		"data": map[string]any{
+			"abc123hash": map[string]any{
+				"cached": true,
+				"hash":   "abc123hash",
+				"name":   "Ubuntu Linux ISO",
+			},
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (m *MockTorBox) handleExportData(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	response := map[string]any{
+		"success": true,
+		"detail":  "Export data retrieved",
+		"data":    "exported data content",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (m *MockTorBox) handleMagnetToFile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	response := map[string]any{
+		"success": true,
+		"detail":  "Magnet converted to file",
+		"data":    "base64encodedtorrentfile",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (m *MockTorBox) handleUsenetList(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	usenetDownloads := []models.UsenetDownload{
+		{
+			ID:             301,
+			Hash:           "usenet123hash",
+			Name:           "Usenet Download",
+			Size:           1024000,
+			DownloadState:  "completed",
+			DownloadSpeed:  0,
+			UploadSpeed:    0,
+			DownloadedSize: 1024000,
+			Progress:       100.0,
+			Ratio:          0,
+			CreatedAt:      time.Now().UTC().Format(time.RFC3339),
+			UpdatedAt:      time.Now().UTC().Format(time.RFC3339),
+			Files:          []models.File{},
+		},
+	}
+
+	response := map[string]any{
+		"success": true,
+		"detail":  "Usenet downloads retrieved",
+		"data":    usenetDownloads,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (m *MockTorBox) handleUsenetDownloadURL(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	usenetID := r.URL.Query().Get("usenet_id")
+	fileID := r.URL.Query().Get("file_id")
+
+	downloadURL := "https://cdn.torbox.test/usenet/" + usenetID + "/" + fileID
+
+	response := map[string]any{
+		"success": true,
+		"detail":  "Usenet download URL generated",
+		"data":    downloadURL,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (m *MockTorBox) handleControlUsenet(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	response := map[string]any{
+		"success": true,
+		"detail":  "Usenet download control acknowledged",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (m *MockTorBox) handleWebDownloadList(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	webDownloads := []models.WebDownload{
+		{
+			ID:             401,
+			Hash:           "web123hash",
+			Name:           "Web Download",
+			Size:           2048000,
+			DownloadState:  "completed",
+			DownloadSpeed:  0,
+			DownloadedSize: 2048000,
+			Progress:       100.0,
+			CreatedAt:      time.Now().UTC().Format(time.RFC3339),
+			UpdatedAt:      time.Now().UTC().Format(time.RFC3339),
+			Files:          []models.File{},
+		},
+	}
+
+	response := map[string]any{
+		"success": true,
+		"detail":  "Web downloads retrieved",
+		"data":    webDownloads,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (m *MockTorBox) handleWebDownloadURL(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	webID := r.URL.Query().Get("web_id")
+	fileID := r.URL.Query().Get("file_id")
+
+	downloadURL := "https://cdn.torbox.test/web/" + webID + "/" + fileID
+
+	response := map[string]any{
+		"success": true,
+		"detail":  "Web download URL generated",
+		"data":    downloadURL,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (m *MockTorBox) handleControlWebDownload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	response := map[string]any{
+		"success": true,
+		"detail":  "Web download control acknowledged",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (m *MockTorBox) handleStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	stats := models.Stats{
+		TotalDownloaded: 1024000000,
+		TotalUploaded:   512000000,
+		ActiveTorrents:  len(m.ActiveTorrents),
+		QueuedTorrents:  len(m.QueuedTorrents),
+		TotalTorrents:   len(m.ActiveTorrents) + len(m.QueuedTorrents),
+	}
+
+	response := map[string]any{
+		"success": true,
+		"detail":  "Stats retrieved",
+		"data":    stats,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (m *MockTorBox) handleNotificationsList(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	notifications := []models.Notification{
+		{
+			ID:        1,
+			Type:      "download_complete",
+			Title:     "Download Complete",
+			Message:   "Your torrent has finished downloading",
+			Read:      false,
+			CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		},
+	}
+
+	response := map[string]any{
+		"success": true,
+		"detail":  "Notifications retrieved",
+		"data":    notifications,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (m *MockTorBox) handleClearNotifications(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	response := map[string]any{
+		"success": true,
+		"detail":  "Notifications cleared",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (m *MockTorBox) handleRSSGetFeeds(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	feeds := []models.RSSFeed{
+		{
+			ID:        1,
+			URL:       "https://example.com/feed.xml",
+			Name:      "Example Feed",
+			Active:    true,
+			CreatedAt: time.Now().UTC().Format(time.RFC3339),
+			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+		},
+	}
+
+	response := map[string]any{
+		"success": true,
+		"detail":  "RSS feeds retrieved",
+		"data":    feeds,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (m *MockTorBox) handleRSSGetFeedItems(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	items := []models.RSSFeedItem{
+		{
+			ID:          1,
+			FeedID:      1,
+			Title:       "Example Item",
+			Link:        "magnet:?xt=urn:btih:example",
+			Description: "Example RSS feed item",
+			PubDate:     time.Now().UTC().Format(time.RFC3339),
+			Downloaded:  false,
+		},
+	}
+
+	response := map[string]any{
+		"success": true,
+		"detail":  "RSS feed items retrieved",
+		"data":    items,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }

@@ -154,3 +154,76 @@ func (s *GeneralService) ControlTorrent(id int64, operation string) error {
 
 	return fmt.Errorf("torrent with ID %d is neither active nor queued", id)
 }
+
+func (s *GeneralService) CheckCachedTorrents(hashes []string) (*models.CheckCachedResponse, error) {
+	r := models.CheckCachedTorrentsRequest{
+		Hashes: hashes,
+	}
+
+	req, err := s.internalClient.NewRequest(http.MethodPost, constants.PATH_TORRENTS_CHECK_CACHED, request.WithJSONBody(r))
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.CheckCachedResponse
+	err = s.internalClient.Do(req, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf("failed to check cached torrents: %s", resp.Detail)
+	}
+
+	return &resp, nil
+}
+
+func (s *GeneralService) ExportTorrentData(torrentId int64, exportType string) (*string, error) {
+	params := make(url.Values)
+	params.Add("torrent_id", fmt.Sprintf("%d", torrentId))
+	params.Add("type", exportType)
+
+	req, err := s.internalClient.NewRequest(http.MethodGet, constants.PATH_TORRENTS_EXPORT_DATA, request.WithURLParams(&params))
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		models.BaseResponse
+		Data string `json:"data"`
+	}
+
+	err = s.internalClient.Do(req, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf("failed to export torrent data: %s", resp.Detail)
+	}
+
+	return &resp.Data, nil
+}
+
+func (s *GeneralService) MagnetToFile(magnetLink string) (*string, error) {
+	r := models.MagnetToFileRequest{
+		Magnet: magnetLink,
+	}
+
+	req, err := s.internalClient.NewRequest(http.MethodPost, constants.PATH_TORRENTS_MAGNET_TO_FILE, request.WithJSONBody(r))
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.MagnetToFileResponse
+	err = s.internalClient.Do(req, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if !resp.Success {
+		return nil, fmt.Errorf("failed to convert magnet to file: %s", resp.Detail)
+	}
+
+	return &resp.Data, nil
+}
