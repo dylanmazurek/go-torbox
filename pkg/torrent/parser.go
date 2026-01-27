@@ -9,8 +9,10 @@ import (
 	"github.com/zeebo/bencode"
 )
 
-func Parse(reader io.Reader) (*Torrent, error) {
-	data, err := io.ReadAll(reader)
+// Parse parses a torrent file from the given reader.
+// r is the reader to read the torrent file from.
+func Parse(r io.Reader) (*Torrent, error) {
+	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
@@ -65,22 +67,36 @@ func Parse(reader io.Reader) (*Torrent, error) {
 		announces = append(announces, metadata.Announce)
 	}
 
-	return &Torrent{
+	infoHash := crypto.ToSHA1(metadata.Info, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	newTorrent := Torrent{
 		Announce:  announces,
 		Comment:   metadata.Comment,
 		CreatedBy: metadata.CreatedBy,
 		CreatedAt: time.Unix(metadata.CreatedAt, 0),
-		InfoHash:  crypto.ToSHA1(metadata.Info),
+		InfoHash:  infoHash,
 		Files:     files,
-	}, nil
+	}
+
+	return &newTorrent, nil
 }
 
-func ParseFromFile(path string) (*Torrent, error) {
-	file, err := os.Open(path)
+// ParseFromFile parses a torrent file from the given path.
+// p is the path to the torrent file.
+func ParseFromFile(p string) (*Torrent, error) {
+	file, err := os.Open(p)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 
-	return Parse(file)
+	newTorrent, err := Parse(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return newTorrent, nil
 }

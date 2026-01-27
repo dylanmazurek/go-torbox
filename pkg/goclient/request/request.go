@@ -31,6 +31,11 @@ func NewRequest(m string, p string, opts ...Option) (*Request, error) {
 	newRequest := &Request{
 		method: m,
 		path:   path,
+		header: &http.Header{},
+	}
+
+	for key, value := range requestOptions.headers {
+		newRequest.header.Set(key, value)
 	}
 
 	if requestOptions.body != nil {
