@@ -11,9 +11,9 @@ import (
 )
 
 func (s *GeneralService) GetQueuedTorrents(bypassCache *bool) ([]models.QueuedDownload, error) {
-	var params url.Values
+	var params url.Values = make(url.Values)
 	if bypassCache != nil {
-		params.Add("bypass_cache", fmt.Sprintf("%t", bypassCache))
+		params.Add("bypass_cache", fmt.Sprintf("%t", *bypassCache))
 	}
 
 	req, err := s.internalClient.NewRequest(http.MethodGet, constants.PATH_TORRENTS_GET_QUEUED, request.WithURLParams(&params))

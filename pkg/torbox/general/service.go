@@ -14,9 +14,14 @@ type GeneralService struct {
 	internalClient *goclient.Client
 }
 
-func New(ctx context.Context, internalClient http.Client, token string) *GeneralService {
+func New(ctx context.Context, internalClient http.Client, token string, baseUrl string) *GeneralService {
+	url := constants.API_GENERAL_BASE_URL
+	if baseUrl != "" {
+		url = baseUrl
+	}
+
 	goClientOpts := []goclient.Option{
-		goclient.WithBaseURL(constants.API_GENERAL_BASE_URL),
+		goclient.WithBaseURL(url),
 		goclient.WithHTTPClient(&internalClient),
 	}
 

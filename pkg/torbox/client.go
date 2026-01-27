@@ -39,7 +39,7 @@ func New(ctx context.Context, opts ...Option) (*Client, error) {
 	}
 
 	client := Client{
-		General: general.New(ctx, *httpAuthClient, clientOptions.apiKey),
+		General: general.New(ctx, *httpAuthClient, clientOptions.apiKey, clientOptions.baseUrl),
 		Search:  search.New(*httpAuthClient),
 	}
 

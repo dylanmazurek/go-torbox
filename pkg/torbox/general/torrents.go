@@ -16,7 +16,7 @@ import (
 )
 
 func (s *GeneralService) FetchDownloadUrl(torrentId int64, fileId int64) (*string, error) {
-	var params url.Values
+	params := make(url.Values)
 	params.Add("torrent_id", fmt.Sprintf("%d", torrentId))
 	params.Add("file_id", fmt.Sprintf("%d", fileId))
 

@@ -1,6 +1,10 @@
 package constants
 
-import "errors"
+import (
+	"errors"
+	"strconv"
+	"strings"
+)
 
 type ControlQueuedTorrentOperation int
 
@@ -30,8 +34,18 @@ func (o *ControlQueuedTorrentOperation) FromString(opStr string) error {
 }
 
 func (o *ControlQueuedTorrentOperation) UnmarshalJSON(data []byte) error {
-	var opStr = string(data)
-	o.FromString(opStr)
+	dataStr := strings.Trim(string(data), "\"")
+
+	if idx, err := strconv.Atoi(dataStr); err == nil {
+		if idx >= 0 && idx < len(controlQueuedOperationStrings) {
+			*o = ControlQueuedTorrentOperation(idx)
+			return nil
+		}
+	}
+
+	if err := o.FromString(dataStr); err == nil {
+		return nil
+	}
 
 	return errors.New("unable to convert to control queued torrent operation")
 }
