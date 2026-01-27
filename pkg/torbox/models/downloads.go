@@ -33,10 +33,10 @@ type GetUsenetListResponse struct {
 	Data []UsenetDownload `json:"data"`
 }
 
-// type ControlUsenetRequest struct {
-// 	UsenetID  int64                          `json:"usenet_id"`
-// 	Operation constants.ControlUsenetOperation `json:"operation"`
-// }
+type ControlUsenetRequest struct {
+	UsenetID  int64  `json:"usenet_id"`
+	Operation string `json:"operation"`
+}
 
 // Web Download models
 type WebDownload struct {
@@ -64,7 +64,12 @@ type CreateWebDownloadResponse struct {
 	Data *WebDownload `json:"data"`
 }
 
-// type ControlWebDownloadRequest struct {
-// 	WebID     int64                                 `json:"web_id"`
-// 	Operation constants.ControlWebDownloadOperation `json:"operation"`
-// }
+type GetWebDownloadListResponse struct {
+	BaseResponse
+	Data []WebDownload `json:"data"`
+}
+
+type ControlWebDownloadRequest struct {
+	WebID     int64  `json:"web_id"`
+	Operation string `json:"operation"`
+}
