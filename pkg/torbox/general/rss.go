@@ -80,8 +80,11 @@ func (s *GeneralService) AddRSSFeed(url string, name string) error {
 func (s *GeneralService) ModifyRSSFeed(feedId int64, name *string, active *bool) error {
 	r := models.ModifyRSSFeedRequest{
 		FeedID: feedId,
-		Name:   *name,
 		Active: active,
+	}
+
+	if name != nil {
+		r.Name = *name
 	}
 
 	req, err := s.internalClient.NewRequest(http.MethodPost, constants.PATH_RSS_MODIFY_FEED, request.WithJSONBody(r))
