@@ -19,7 +19,7 @@ const (
 
 // Queued Torrent API Paths
 const (
-	PATH_TORRENTS_GET_QUEUED   = "api/queued/getqueued"
+	PATH_TORRENTS_GET_QUEUED     = "api/queued/getqueued"
 	PATH_TORRENTS_CONTROL_QUEUED = "api/queued/controlqueued"
 )
 
@@ -34,9 +34,9 @@ const (
 
 // Web Download API Paths
 const (
-	PATH_WEBDL_CREATE  = "api/webdl/createwebdownload"
-	PATH_WEBDL_GET_LIST = "api/webdl/mylist"
-	PATH_WEBDL_CONTROL = "api/webdl/controlwebdownload"
+	PATH_WEBDL_CREATE       = "api/webdl/createwebdownload"
+	PATH_WEBDL_GET_LIST     = "api/webdl/mylist"
+	PATH_WEBDL_CONTROL      = "api/webdl/controlwebdownload"
 	PATH_WEBDL_GET_DOWNLOAD = "api/webdl/requestdl"
 	PATH_WEBDL_CHECK_CACHED = "api/webdl/checkcached"
 )
@@ -71,8 +71,8 @@ const (
 
 // Search API Paths
 const (
-	PATH_SEARCH_TORRENTS = "torrents"
-	PATH_SEARCH_META     = "meta"
-	PATH_TORRENTS_SEARCH = "api/torrents/search"
+	PATH_SEARCH_TORRENTS       = "torrents"
+	PATH_SEARCH_META           = "meta"
+	PATH_TORRENTS_SEARCH       = "api/torrents/search"
 	PATH_TORRENTS_STORE_SEARCH = "api/torrents/storesearch"
 )
